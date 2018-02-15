@@ -1,3 +1,3 @@
 # ChartsJS
-Bitcoin realtime Chart
+Bitcoin realtime Chart<br>
 API: CoinCheck

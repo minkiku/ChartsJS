@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.6.0/Chart.js"></script>
+<script type="text/javascript" src="https://github.com/nagix/chartjs-plugin-streaming/releases/download/v1.2.0/chartjs-plugin-streaming.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pusher/4.1.0/pusher.js"></script>
+<script type="text/javascript">
+    var buf = {};
+    buf['CoinCheck'] = [[], []];
+</script>
+    </head>
+    <body>
+        <canvas id="CoinCheck"></canvas>
+        <script type="text/javascript">
+        buf['CoinCheck'] = [[], []];
+        var ws = new WebSocket('wss://ws-api.coincheck.com/');
+        ws.onopen = function() {
+            ws.send(JSON.stringify({        // 購読リクエストを送信
+                "type": "subscribe",
+                "channel": "btc_jpy-trades"
+            }));
+        };
+
+        ws.onmessage = function(msg) { // メッセージ更新時のコールバック
+            var response = JSON.parse(msg.data);
+            buf['CoinCheck'][response[4] === 'buy' ? 0 : 1].push({
+                x: Date.now(), // タイムスタンプ（ミリ秒）
+                y: response[2] // 価格（日本円）
+            });
+        }
+            // Chart の設定をする
+            var id = 'CoinCheck';
+            var ctx = document.getElementById(id).getContext('2d');
+            var chart = new Chart(ctx,{
+                type:'line',
+                data:{
+                    datasets:[{
+                        data: [],
+                        label: 'buy',
+                        borderColor: 'rgb(244,66,197)',
+                        backgroundColor:'rgba(244,66,197,0.5)',
+                        fill: false,
+                        lineTension: 0
+                    },{
+                        data: [],
+                        label: 'sell',
+                        borderColor: 'rgb(47,44,232)',
+                        backgroundColor: 'rgba(47,44,232,0.5)',
+                        fill: false,
+                        lineTension: 0
+                    }
+                    ]},
+                options:{
+                    title:{
+                        text:'CoinCheck',
+                        display: true
+                    },
+                    scales:{
+                        xAxes: [{
+                            // X軸に沿ってスクロール
+                            type: 'realtime'
+                            }]
+                    },
+                    plugins:{
+                        streaming:{
+                            duration: 60000,
+                            onRefresh: function(chart) {
+                                Array.prototype.push.apply(
+                                    chart.data.datasets[0].data,buf[id][0]
+                                );
+                                Array.prototype.push.apply(
+                                    chart.data.datasets[1].data,buf[id][1]
+                                );
+                                buf[id] = [[],[]];
+                             }
+                        }
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>
